@@ -2,10 +2,15 @@
 #define SIZE_Y 21
 #define SIZE_X 10
 
+//TODO: SPLIT INTO MULTIPLE FILES
+
 typedef struct Position {
 	int y;
 	int x;
 } Position_t;
+class Player;
+class Ship;
+class Board;
 
 //Loop for N/W/S/E position system
 Position_t positionLoop(Position_t position, char direction, int increment) {
@@ -38,24 +43,36 @@ public:
 void Board::initBoard() {
 	for (int i = 0; i < SIZE_Y; i++) {
 		for (int j = 0; j < SIZE_X; j++) {
-			if (i == SIZE_Y / 2) {
-				board[i][j] = 'x';
-			}
-			else {
-				board[i][j] = '0';
-			}
+			//if (i == SIZE_Y / 2) {
+			//	board[i][j] = 'x';
+			//}
+			//else {
+				board[i][j] = ' ';
+			//}
 		}
 	}
 }
 
-void Board::printBoard() {
+void Board::printBoard(){
+	int player_A_ships_remaining = 0;
+	int player_B_ships_remaining = 0;
+
 	for (int i = 0; i < SIZE_Y; i++) {
 		for (int j = 0; j < SIZE_X; j++) {
-			std::cout << board[i][j] << " ";
+			std::cout << board[i][j];
+			if (board[i][j] == '+') {
+				if (i < 10) {
+					player_A_ships_remaining++;
+				}
+				else {
+					player_B_ships_remaining++;
+				}
+			}
 		}
-		std::cout << "\t" << i;
 		std::cout << "\n";
 	}
+	if ((player_A_ships_remaining + player_B_ships_remaining) != 0)
+		std::cout << "PARTS REMAINING:" << ": A : " << player_A_ships_remaining << " B : " << player_B_ships_remaining << "\n";
 }
 
 void Board::placeChar(Position_t position, char c) {
@@ -83,26 +100,25 @@ class Player {
 public:
 	char name;
 	Ship ships[4][10];
-	bool his_turn;
 	Player();
 	void initShips(int default_ship_numbers[4]);
 	Ship* selectShip(int index, char ship_class[4]);
-	void placeShip(Board* board, Position_t position, char direction, int index, char ship_class[4]);
+	bool placeShip(Board* board, Position_t position, char direction, int index, char ship_class[4]);
 
 private:
 	bool isValidPlacement(Position_t position, int ship_length, char direction);
+	static const char names[4][4];
 };
+
+const char Player::names[4][4] = { "CAR", "BAT", "CRU", "DES" };
 
 Player::Player() {
 	name = ' ';
-	his_turn = false;
 }
 
 void Player::initShips(int default_ship_numbers[4]) {
 	//default_ship_numbers[4] = { 1, 2, 3, 4 };
 	//1 carrier, 2 battleships, 3 cruisers, 4 destroyers
-
-	const char names[4][4] = { "CAR", "BAT", "CRU", "DES" };
 	const int ship_sizes[4] = { 5, 4, 3, 2 };
 
 	Ship carrier, battleship, cruiser, destroyer;
@@ -123,45 +139,35 @@ void Player::initShips(int default_ship_numbers[4]) {
 }
 
 Ship* Player::selectShip(int index, char ship_class[4]) {
-	//I'll refactor this later
-	if (!strcmp(ship_class, "CAR")) {
-		if (ships[0][index].size != 0) {
-			return &ships[0][index];
-		}
-		else {
-			throw "SHIP DOESN'T EXIST";
-		}
-	}
-	else if (!strcmp(ship_class, "BAT")) {
-		if (index <= (sizeof(ships[1]) / sizeof(ships[1][0]))) {
-			return &ships[1][index];
+	//const char Player::names[4][4] = { "CAR", "BAT", "CRU", "DES" };
+	for (int i = 0; i < sizeof(names) / sizeof(names[0]); i++) {
+		if (!strcmp(ship_class, names[i])) {
+			if (ships[i][index].size != 0) {
+				return &ships[i][index];
+			}
+			else {
+				throw "INVALID OPERATION";
+			}
 		}
 	}
-	else if (!strcmp(ship_class, "CRU")) {
-		if (index <= (sizeof(ships[2]) / sizeof(ships[2][0]))) {
-			return &ships[2][index];
-		}
-	}
-	else if (!strcmp(ship_class, "DES")) {
-		if (index <= (sizeof(ships[3]) / sizeof(ships[3][0]))) {
-			return &ships[3][index];
-		}
-	}
+	//Only here not to upset the compiler
+	return &ships[0][0];
 }
 
-void Player::placeShip(Board* board, Position_t position, char direction, int index, char ship_class[4]) {
+bool Player::placeShip(Board* board, Position_t position, char direction, int index, char ship_class[4]) {
 	Ship* ship;
 	try {
 		ship = selectShip(index, ship_class);
 	}
 	catch (const char* error) {
 		std::cout << error;
-		return;
+		std::cout << " \"PLACE_SHIP " << position.y << " " << position.x << " " << direction << " " << index << " " << ship_class << "\": ALL SHIPS OF THE CLASS ALREADY SET\n";
+		return 1;
 	}
 
 	if (ship->is_placed) {
-		std::cout << "SHIP ALREADY PLACED\n";
-		return;
+		std::cout << "INVALID OPERATION \"PLACE_SHIP " << position.y << " " << position.x << " " << direction << " " << index << " " << ship_class << "\": SHIP ALREADY PRESENT\n";
+		return 1;
 	}
 
 	if (isValidPlacement(position, ship->size, direction)) {
@@ -169,7 +175,7 @@ void Player::placeShip(Board* board, Position_t position, char direction, int in
 		for (int i = 0; i < ship->size; i++) {
 			//Check if the ship doesn't collide
 			position = positionLoop(position, direction, 1);
-			if (board->board[position.y][position.x] == '0') {
+			if (board->board[position.y][position.x] == ' ') {
 				count++;
 			}
 		}
@@ -178,19 +184,21 @@ void Player::placeShip(Board* board, Position_t position, char direction, int in
 			for (int i = 0; i < ship->size; i++) {
 				//Draw the ship on the board
 				position = positionLoop(position, direction, -1);
-				board->placeChar(position, 'x');
+				board->placeChar(position, '+');
 			}
 		}
 		else {
 			std::cout << "ERROR PLACING SHIP\n";
+			return 1;
 		}
 	}
 	else {
-		std::cout << "ERROR NOT VALID PLACEMENT\n";
+		std::cout << "INVALID OPERATION \"PLACE_SHIP " << position.y << " " << position.x << " " << direction << " " << index << " " << ship_class << "\": NOT IN STARTING POSITION";
+		return 1;
 	}
 
 	ship->is_placed = true;
-
+	return 0;
 }
 
 bool Player::isValidPlacement(Position_t position, int ship_length, char direction) {
@@ -229,26 +237,22 @@ void printHandler(int print_mode, Board* board) {
 	case 0: {
 		board->printBoard();
 		break;
-	}
+		}
 	}
 }
 
 void userInputHandler(Board* board, Player* players[2]) {
 	Player* player = players[0];
 
-
-	//TODO: CHOOSING PLAYERS
-	for (int i = 0; i < 2; i++) {
-		if (players[i]->his_turn) {
-			player = players[i];
-		}
-	}
-
 	//Hideous code ahead, Cpp's fault ¯\_ (ツ)_/¯
 	char command[30];
 	while (std::cin >> command) {
-		if (strcmp(command, "[playerA]") == false || strcmp(command, "[playerB]") == false) {
-			player->his_turn = !player->his_turn;
+		if (!strcmp(command, "[playerA]")) {
+			player = players[0];
+		}
+
+		else if (!strcmp(command, "[playerB]")){
+			player = players[1];
 		}
 
 		if (!strcmp(command, "PRINT")) {
@@ -256,13 +260,17 @@ void userInputHandler(Board* board, Player* players[2]) {
 			std::cin >> print_mode;
 			printHandler(print_mode, board);
 		}
+
 		else if (!strcmp(command, "PLACE_SHIP")) {
 			int position_y, position_x;
 			char direction;
 			int index;
 			char ship_class[4];
+
 			std::cin >> position_y >> position_x >> direction >> index >> ship_class;
-			player->placeShip(board, { position_y, position_x }, direction, index, ship_class);
+			if ((player->placeShip(board, { position_y, position_x }, direction, index, ship_class)) == true) {
+				break;
+			};
 		}
 	}
 }
@@ -279,7 +287,6 @@ int main()
 
 	A->name = 'A';
 	B->name = 'B';
-
 
 	int default_ship_numbers[4] = { 1, 2, 3, 4 };
 
