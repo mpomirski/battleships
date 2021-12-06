@@ -272,6 +272,14 @@ void userInputHandler(Board* board, Player* players[2]) {
 				break;
 			};
 		}
+
+		else if (!strcmp(command, "SHOOT")) {
+			int y, x;
+			std::cin >> y >> x;
+			if (board->board[y][x] == '+') {
+				board->placeChar({ y, x }, 'x');
+			}
+		}
 	}
 }
 
