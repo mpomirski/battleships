@@ -84,6 +84,7 @@ void Vector<T>::print() {
 	}
 }
 
+//Dont use this doesdnt work
 template <typename T>
 T Vector<T>::operator [](int i) {
 	return arr[i];

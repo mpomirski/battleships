@@ -15,6 +15,6 @@ public:
 	char ship_class[SHIP_TYPES];
 	bool is_placed;
 	Ship();
-	Vector<Position_t> segments;
+	Position_t segments[MAX_SEGMENTS];
 };
 

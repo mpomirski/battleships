@@ -5,12 +5,12 @@
 void Board::initBoard() {
 	for (int i = 0; i < SIZE_Y; i++) {
 		for (int j = 0; j < SIZE_X; j++) {
-			//if (i == SIZE_Y / 2) {
-			//	board[i][j] = 'x';
-			//}
-			//else {
+			if (i == SIZE_Y / 2) {
+				board[i][j] = 'x';
+			}
+			else {
 			board[i][j] = ' ';
-			//}
+			}
 		}
 	}
 }

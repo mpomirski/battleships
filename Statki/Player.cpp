@@ -6,6 +6,7 @@ Player::Player() {
 	isFleetSet = false;
 	current_ships = 0;
 	max_ships = 0;
+	ship_segments = 0;
 }
 const char names[SHIP_TYPES][4] = { "CAR", "BAT", "CRU", "DES" };
 
@@ -41,7 +42,6 @@ void Player::initShips(int default_ship_numbers[SHIP_TYPES]) {
 		strcpy_s(choose_ships[i].ship_class, names[i]);
 	}
 
-	//For every element in default_ship_numbers, add the corresponding
 	for (int i = 0; i < sizeof(default_ship_numbers); i++) {
 		for (int j = 0; j < default_ship_numbers[i]; j++) {
 			ships[i][j] = choose_ships[i];
@@ -49,13 +49,14 @@ void Player::initShips(int default_ship_numbers[SHIP_TYPES]) {
 		max_ships += default_ship_numbers[i];
 	}
 
+	isFleetSet = true;
 }
 
 Ship* Player::selectShip(int index, char ship_class[SHIP_TYPES]) {
 	//const char Player::names[4][4] = { "CAR", "BAT", "CRU", "DES" };
 	for (int i = 0; i < sizeof(names) / sizeof(names[0]); i++) {
 		if (!strcmp(ship_class, names[i])) {
-			if (ships[i][index].size != 0) {
+			if (&ships[i][index].size != 0) {
 				return &ships[i][index];
 			}
 			else {
@@ -67,19 +68,19 @@ Ship* Player::selectShip(int index, char ship_class[SHIP_TYPES]) {
 	return &ships[0][0];
 }
 
-Vector<Position_t**> Player::getAllShipPositions() {
-	Vector <Position_t**> shipPositions;
-
+Vector<Position_t*> Player::getAllShipPositions() {
+	Vector <Position_t*> shipPositions;
 	for (int i = 0; i < SHIP_TYPES; i++) {
 		for (int j = 0; j < SHIP_LENGTHS; j++) {
 			if (ships[i][j].size > 0) {
-				shipPositions.push(ships[i][j].segments);
+				for (int k = 0; k < MAX_SEGMENTS; k++) {
+					if (ships[i][j].segments[k].x >= 0 && ships[i][j].segments[k].y >= 0) {
+						shipPositions.push(&(ships[i][j].segments[k]));
+					}
+				}
 			}
 		}
 	}
-
-	//std::cout << shipPositions.get()->x << " " << shipPositions.get()->y << std::endl;
-	std::cout << shipPositions[0];
 	return shipPositions;
 }
 
@@ -171,8 +172,12 @@ bool Player::isValidPlacement(Position_t position, int ship_length, char directi
 	return false;
 }
 
-void Player::Shoot(Position_t position) {
+void Player::Shoot(Position_t position, Board* board) {
 	for (int i = 0; i < getAllShipPositions().cur_length; i++) {
-		for(int j = 0; j < getAllShipPositions()[i].cur_length; j++)
+		if (position.x == (getAllShipPositions().arr[i])->x && position.y == (getAllShipPositions().arr[i])->y) {
+			getAllShipPositions()[i]->is_hit = true;
+			ship_segments--;
+			board->placeChar({ position.y, position.x }, 'x');
+		}
 	}
 }

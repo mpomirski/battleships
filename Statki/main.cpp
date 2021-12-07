@@ -4,6 +4,7 @@
 #include "Player.h"
 #include "Board.h"
 #include "Vector.h"
+#define NUM_OF_PLAYERS 2
 
 void printHandler(int print_mode, Board* board) {
 	switch (print_mode) {
@@ -14,10 +15,14 @@ void printHandler(int print_mode, Board* board) {
 	}
 }
 
+
 void userInputHandler(Board* board, Player* players[2]) {
 	Player* player = players[0];
+	Player* other_player = players[1];
 	int default_ship_numbers[SHIP_TYPES] = { 1, 2, 3, 4 };
 	bool all_ships_placed = false;
+	int turn_number = 1;
+	bool ships_flag_set = false;
 
 	//Hideous code ahead, Cpp's fault ¯\_ (ツ)_/¯
 	char command[30];
@@ -43,10 +48,12 @@ void userInputHandler(Board* board, Player* players[2]) {
 
 		if (!strcmp(command, "[playerA]")) {
 			player = players[0];
+			other_player = players[1];
 		}
 
 		else if (!strcmp(command, "[playerB]")){
 			player = players[1];
+			other_player = players[0];
 		}
 
 		if (!strcmp(command, "PRINT")) {
@@ -55,7 +62,7 @@ void userInputHandler(Board* board, Player* players[2]) {
 			printHandler(print_mode, board);
 		}
 
-		else if (!strcmp(command, "PLACE_SHIP")) {
+		if (!strcmp(command, "PLACE_SHIP")) {
 			//MOVE THIS TO A FUNCTION
 
 			//If the fleet isn't set yet, initialize it using the defaults
@@ -77,26 +84,40 @@ void userInputHandler(Board* board, Player* players[2]) {
 			};
 
 			if (!all_ships_placed) {
-				for (int i = 0; i < 2; i++) {
-					if (players[i]->current_ships != players[i]->max_ships) {
-						break;
-					}
-					else {
-						all_ships_placed = true;
-					}
+				if (players[0]->current_ships == players[0]->max_ships && players[1]->current_ships == players[1]->max_ships) {
+					all_ships_placed = true;
 				}
 			}
 
 		}
 
-		else if (!strcmp(command, "SHOOT")) {
+		if (!strcmp(command, "SHOOT")) {
 			int y, x;
 			std::cin >> y >> x;
 			
 			if (y < SIZE_Y && x < SIZE_X) {
 				if (all_ships_placed) {
-					player->Shoot({ y, x, false });
-					player->getAllShipPositions();
+					other_player->Shoot({ y, x, false }, board);
+				}
+				else {
+					std::cout << "INVALID OPERATION \"SHOOT " << y << " " << x << "\": NOOT ALL SHIPS PLACED\n";
+					break;
+				}
+			}
+		}
+
+		if (all_ships_placed && !ships_flag_set) {
+			for (int i = 0; i < 2; i++) {
+				players[i]->ship_segments = players[i]->getAllShipPositions().cur_length;
+			}
+			ships_flag_set = true;
+		}
+
+		if (all_ships_placed) {
+			for (int i = 0; i < 2; i++) {
+				if (players[i]->ship_segments == 0) {
+					std::cout << players[(i+1)%2]->name << " won\n";
+					return;
 				}
 			}
 		}
