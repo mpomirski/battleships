@@ -8,13 +8,13 @@ public:
 	Vector();
 	void push(T data);
 	void push(T data, int index);
-	const T get( int index);
-	const T get();
+	const T get( int index) const;
+	const T get() const;
 	T pop();
-	const int getLength();
-	const int getSize();
-	const void print();
-	T operator [](int i);
+	const int getLength() const;
+	const int getSize() const;
+	const void print() const;
+	T operator [](int i) const;
 	T operator=(T data);
 };
 
@@ -58,28 +58,28 @@ T Vector<T>::pop() {
 }
 
 template <typename T>
-const T Vector<T>::get() {
+const T Vector<T>::get() const {
 	return arr[cur_length - 1];
 }
 
 template <typename T>
-const T Vector<T>::get(int index) {
+const T Vector<T>::get(int index) const{
 	if (index < cur_length) {
 		return arr[index];
 	}
 }
 
 template <typename T>
-const int Vector<T>::getLength() {
+const int Vector<T>::getLength() const{
 	return cur_length;
 }
 
 template <typename T>
-const int Vector<T>::getSize() {
+const int Vector<T>::getSize() const{
 	return max_length;
 }
 template <typename T>
-const void Vector<T>::print() {
+const void Vector<T>::print() const{
 	for (int i = 0; i < cur_length; i++) {
 		std::cout << arr[i] << " ";
 	}
@@ -87,7 +87,7 @@ const void Vector<T>::print() {
 
 //Dont use this doesdnt work
 template <typename T>
-T Vector<T>::operator [](int i) {
+T Vector<T>::operator [](int i) const{
 	return arr[i];
 }
 

@@ -6,33 +6,36 @@
 #include "Vector.h"
 #define NUM_OF_PLAYERS 2
 
-void printHandler(int print_mode, Board* board, Player players[2]);
-Player* choosePlayerByName(char* name, Player* players[2]);
-void initDefaultShips(Player* players[2]);
-int charToInt(char ch);
-void userInputHandler(Board* board, Player* players[2]);
+Player* choosePlayerByName(char* name, Player* players[NUM_OF_PLAYERS]);
 
-//Main
+int charToInt(char ch);
+void printHandler(int print_mode, Board* board, Player players[NUM_OF_PLAYERS]);
+void userInputHandler(Player* players[NUM_OF_PLAYERS]);
+void stateHandler(Board* board, Player* players[NUM_OF_PLAYERS], Player* player);
+void playerHandler(Player* player, Player* other_player, Player* players[2], char command[30]);
+
+void initDefaultShips(Player* players[NUM_OF_PLAYERS]);
+void placeShip(Player* player, Player* players[NUM_OF_PLAYERS], Board* board, bool* all_ships_placed);
+void shoot(Board* board, bool all_ships_placed, Player* other_player);
+void win(bool ships_flag_set, Player* players[NUM_OF_PLAYERS]);
+
 int main()
 {
-	Board board;
-	board.initBoard();
-
 	Player* A = new Player;
 	Player* B = new Player;
-	Player* players[2] = { A, B };
+	Player* players[NUM_OF_PLAYERS] = { A, B };
 
 	A->name = 'A';
 	B->name = 'B';
 
-	userInputHandler(&board, players);
+	userInputHandler(players);
 
 	exit(0);
 	return 0;
 }
 
 
-void printHandler(int print_mode, Board* board, Player players[2]) {
+void printHandler(int print_mode, Board* board, Player players[NUM_OF_PLAYERS]) {
 	switch (print_mode) {
 	case 0: {
 		board->printBoard(players[0].max_y + 1);
@@ -41,7 +44,7 @@ void printHandler(int print_mode, Board* board, Player players[2]) {
 	}
 }
 
-Player* choosePlayerByName(char* name, Player* players[2]) {
+Player* choosePlayerByName(char* name, Player* players[NUM_OF_PLAYERS]) {
 	if (!strcmp(&name[0], "A")) {
 		return players[0];
 	}
@@ -50,10 +53,10 @@ Player* choosePlayerByName(char* name, Player* players[2]) {
 	}
 }
 
-void initDefaultShips(Player* players[2]) {
+//If the fleet isn't set yet, initialize it using the default ship values
+void initDefaultShips(Player* players[NUM_OF_PLAYERS]) {
 	int default_ship_numbers[SHIP_TYPES] = { 1, 2, 3, 4 };
-	//If the fleet isn't set yet, initialize it using the defaults
-	for (int i = 0; i < 2; i++) {
+	for (int i = 0; i < NUM_OF_PLAYERS; i++) {
 		if (!players[i]->isFleetSet) {
 			players[i]->initShips(default_ship_numbers);
 		}
@@ -64,7 +67,7 @@ int charToInt(char ch) {
 	return((ch >= '0' && ch <= '9') ? ch - '0' : 0);
 }
 
-void stateHandler(Board* board, Player* players[2], Player* player) {
+void stateHandler(Board* board,  Player* players[NUM_OF_PLAYERS], Player* player) {
 	char command[30];
 
 	while (std::cin >> command) {
@@ -137,101 +140,123 @@ void stateHandler(Board* board, Player* players[2], Player* player) {
 			choosePlayerByName(name, players)->max_x = x2;
 		}
 
+		if (!strcmp(command, "BOARD_SIZE")) {
+			int y, x;
+			std::cin >> y >> x;
+			board->changeSize(y, x);
+		}
+
 		if (!strcmp(command, "[state]")) {
 			return;
 		}
 	}
 };
 
-void userInputHandler(Board* board, Player* players[2]) {
+void playerHandler(Player* player, Player* other_player, Player* players[2], char command[30]) {
+	player->round++;
+	if (player->round == other_player->round) {
+		std::cout << "INVALID OPERATION \"" << command << " \": THE OTHER PLAYER EXPECTED\n";
+		throw "e";
+	}
+}
+
+void placeShip(Player* player, Player* players[NUM_OF_PLAYERS], Board* board, bool* all_ships_placed) {
+	initDefaultShips(players);
+
+	int position_y, position_x;
+	char direction;
+	int index;
+	char ship_class[4];
+
+	std::cin >> position_y >> position_x >> direction >> index >> ship_class;
+	//Checks and executes placeShip, returning true if it failed
+	if ((player->placeShip(board, { position_y, position_x, false }, direction, index, ship_class)) == true) {
+		throw "e";
+	};
+
+	if (!*all_ships_placed) {
+		if (players[0]->current_ships == players[0]->max_ships && players[1]->current_ships == players[1]->max_ships) {
+			*all_ships_placed = true;
+		}
+	}
+};
+
+void shoot(Board* board, bool all_ships_placed, Player* other_player) {
+	int y, x;
+	std::cin >> y >> x;
+
+	if (y < board->size_y && x < board->size_x) {
+		if (all_ships_placed) {
+			other_player->Shoot({ y, x, false }, board);
+		}
+		else {
+			std::cout << "INVALID OPERATION \"SHOOT " << y << " " << x << "\": NOT ALL SHIPS PLACED\n";
+			throw "e";
+		}
+	}
+	else {
+		std::cout << "INVALID OPERATION \"SHOOT " << y << " " << x << "\": FIELD DOES NOT EXIST\n";
+		throw "e";
+	}
+}
+
+void win(bool *ships_flag_set, Player* players[NUM_OF_PLAYERS]) {
+	if (!*ships_flag_set) {
+		for (int i = 0; i < NUM_OF_PLAYERS; i++) {
+			players[i]->ship_segments = players[i]->getAllShipPositions().cur_length;
+		}
+		*ships_flag_set = true;
+	}
+	for (int i = 0; i < NUM_OF_PLAYERS; i++) {
+		if (players[i]->ship_segments == 0) {
+			std::cout << players[(i + 1) % 2]->name << " won\n";
+			throw "e";
+		}
+	}
+}
+
+void userInputHandler(Player* players[NUM_OF_PLAYERS]) {
+	Board* board = new Board();
 	Player* player = players[0];
 	Player* other_player = players[1];
 	int default_ship_numbers[SHIP_TYPES] = { 1, 2, 3, 4 };
 	bool all_ships_placed = false;
 	bool ships_flag_set = false;
 
-	//Hideous code ahead, Cpp's fault ¯\_ (ツ)_/¯
 	char command[30];
 	while (std::cin >> command) {
-
 		if (!strcmp(command, "[state]")) {
 			stateHandler(board, players, player);
 		}
 
 		if (!strcmp(command, "[playerA]")) {
-			player->round++;
-			if (player->round == other_player->round) {
-				std::cout << "INVALID OPERATION \"" << command << " \": THE OTHER PLAYER EXPECTED\n";
-				break;
-			}
+			try { playerHandler(player, other_player, players, command); }
+			catch (const char* _) { break; }
 			player = players[0];
 			other_player = players[1];
 		}
 
 		else if (!strcmp(command, "[playerB]")) {
-			player->round++;
-			if (player->round == other_player->round) {
-				std::cout << "INVALID OPERATION \"" << command << " \": THE OTHER PLAYER EXPECTED\n";
-				break;
-			}
+			try { playerHandler(player, other_player, players, command); }
+			catch (const char* _) { break; }
 			player = players[1];
 			other_player = players[0];
 		}
 
 		if (!strcmp(command, "PLACE_SHIP")) {
-			initDefaultShips(players);
-
-			int position_y, position_x;
-			char direction;
-			int index;
-			char ship_class[4];
-
-			std::cin >> position_y >> position_x >> direction >> index >> ship_class;
-			//Checks and executes placeShip, returning true if it failed
-			if ((player->placeShip(board, { position_y, position_x, false }, direction, index, ship_class)) == true) {
-				break;
-			};
-
-			if (!all_ships_placed) {
-				if (players[0]->current_ships == players[0]->max_ships && players[1]->current_ships == players[1]->max_ships) {
-					all_ships_placed = true;
-				}
-			}
-
+			try { placeShip(player, players, board, &all_ships_placed); }
+			catch (const char* _) { break; }
 		}
 
 		if (!strcmp(command, "SHOOT")) {
-			int y, x;
-			std::cin >> y >> x;
+			try { shoot(board, all_ships_placed, other_player); }
+			catch (const char* _) { break; }
 
-			if (y < SIZE_Y && x < SIZE_X) {
-				if (all_ships_placed) {
-					other_player->Shoot({ y, x, false }, board);
-				}
-				else {
-					std::cout << "INVALID OPERATION \"SHOOT " << y << " " << x << "\": NOT ALL SHIPS PLACED\n";
-					break;
-				}
-			}
-			else {
-				std::cout << "INVALID OPERATION \"SHOOT " << y << " " << x << "\": FIELD DOES NOT EXIST\n";
-				break;
-			}
 		}
 
 		if (all_ships_placed) {
-			if (!ships_flag_set) {
-				for (int i = 0; i < 2; i++) {
-					players[i]->ship_segments = players[i]->getAllShipPositions().cur_length;
-				}
-				ships_flag_set = true;
-			}
-			for (int i = 0; i < 2; i++) {
-				if (players[i]->ship_segments == 0) {
-					std::cout << players[(i + 1) % 2]->name << " won\n";
-					return;
-				}
-			}
+			try { win(&ships_flag_set, players); }
+			catch (const char* _) { return; }
 		}
 	}
 }

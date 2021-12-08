@@ -2,9 +2,30 @@
 #include "Board.h"
 //Game board
 
-void Board::initBoard() {
-	for (int i = 0; i < SIZE_Y; i++) {
-		for (int j = 0; j < SIZE_X; j++) {
+Board::Board() {
+	board = new char* [size_y];
+	for (int i = 0; i < size_y; i++) {
+		board[i] = new char[size_x];
+	}
+
+	//Initialize the board with blanks
+	for (int i = 0; i < size_y; i++) {
+		for (int j = 0; j < size_x; j++) {
+			board[i][j] = ' ';
+		}
+	}
+}
+
+void Board::changeSize(int y, int x) {
+	size_y = y;
+	size_x = x;
+	board = new char* [size_y];
+	for (int i = 0; i < y; i++) {
+		board[i] = new char[size_x];
+	}
+
+	for (int i = 0; i < size_y; i++) {
+		for (int j = 0; j < size_x; j++) {
 			//if (i == SIZE_Y / 2) {
 			//	board[i][j] = 'x';
 			//}
@@ -15,15 +36,17 @@ void Board::initBoard() {
 	}
 }
 
-const void Board::printBoard(int border_y) {
+void Board::printBoard(int border_y) const{
 	int player_A_ships_remaining = 0;
 	int player_B_ships_remaining = 0;
 
-	for (int i = 0; i < SIZE_Y; i++) {
-		for (int j = 0; j < SIZE_X; j++) {
+	//It just counts the ships placed on the board
+	for (int i = 0; i < size_y; i++) {
+		for (int j = 0; j < size_x; j++) {
 			std::cout << board[i][j];
+
 			if (board[i][j] == '+') {
-				if (i < border_y/*(SIZE_Y / 2)*/) {
+				if (i < border_y) {
 					player_A_ships_remaining++;
 				}
 				else {

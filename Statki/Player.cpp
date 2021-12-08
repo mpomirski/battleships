@@ -6,16 +6,16 @@ Player::Player() {
 	isFleetSet = false;
 	current_ships = 0;
 	max_ships = 0;
-	ship_segments = 0;
+	ship_segments = 0; //all ships * their segments amount
 	round = 0;
 	min_y = 0, max_y = 0;
-	min_x = 0, max_x = SIZE_X;
+	min_x = 0, max_x = 10;
 	bounded = false;
 }
 const char names[SHIP_TYPES][4] = { "CAR", "BAT", "CRU", "DES" };
 
-//Loop for N/W/S/E position system
-static Position_t positionLoop(Position_t position, char direction, int increment) {
+//Loop for N/W/S/E position system, takes a position and returns it changed by inrement, in the direction
+Position_t positionLoop(Position_t position, char direction, int increment) {
 	switch (direction) {
 	case 'N':
 		return { position.y + increment, position.x };
@@ -38,6 +38,7 @@ void Player::initShips(int default_ship_numbers[SHIP_TYPES]) {
 	//1 carrier, 2 battleships, 3 cruisers, 4 destroyers
 	const int ship_sizes[SHIP_TYPES] = { 5, 4, 3, 2 };
 
+	//Kind of a template for copying to the player actual ships
 	Ship carrier, battleship, cruiser, destroyer;
 	Ship choose_ships[SHIP_TYPES] = { carrier, battleship, cruiser, destroyer };
 
@@ -57,22 +58,23 @@ void Player::initShips(int default_ship_numbers[SHIP_TYPES]) {
 }
 
 Ship* Player::selectShip(int index, char ship_class[SHIP_TYPES]) {
-	//const char Player::names[4][4] = { "CAR", "BAT", "CRU", "DES" };
+	//const char names[4][4] = { "CAR", "BAT", "CRU", "DES" };
 	for (int i = 0; i < sizeof(names) / sizeof(names[0]); i++) {
 		if (!strcmp(ship_class, names[i])) {
 			if (ships[i][index].size != 0) {
 				return &ships[i][index];
 			}
 			else {
-				throw "INVALID OPERATION";
+				throw "e";
 			}
 		}
 	}
-	//Only here not to upset the compiler
+	//Only here not to upset the compiler, never gets returned
 	return &ships[0][0];
 }
 
 Vector<Position_t*> Player::getAllShipPositions() {
+	//Yes, this is messy, creates a big vector for all of the player's ship segments.
 	Vector <Position_t*> shipPositions;
 	for (int i = 0; i < SHIP_TYPES; i++) {
 		for (int j = 0; j < SHIP_LENGTHS; j++) {
@@ -88,28 +90,63 @@ Vector<Position_t*> Player::getAllShipPositions() {
 	return shipPositions;
 }
 
+void errorHandler(Position_t position, char direction, int index, char ship_class[SHIP_TYPES], int error_type) {
+	std::cout << "INVALID OPERATION \"PLACE_SHIP " << position.y << " " << position.x << " " << direction << " " << index << " " << ship_class << "\": ";
+	switch (error_type) {
+	case 1:
+		std::cout << "SHIP ALREADY PRESENT\n";
+		break;
+	case 2:
+		std::cout << "ALL SHIPS OF THE CLASS ALREADY SET\n";
+		break;
+	case 3:
+		std::cout << "PLACING SHIP ON REEF\n";
+		break;
+	case 4:
+		std::cout << "NOT IN STARTING POSITION\n";
+		break;
+	default:
+		std::cout << "ERROR PLACING SHIP\n";
+		break;
+	}
+}
+
+void drawShip(Board* board, Vector<int>* set_segments, Ship* ship, Position_t position, char direction) {
+	for (int i = 0; i < ship->size; i++) {
+		//Draw the ship on the board
+		position = positionLoop(position, direction, -1);
+		ship->segments[i] = position;
+		if (set_segments != nullptr && set_segments->cur_length > 0) {
+			ship->segments[i].is_hit = !(set_segments->pop());
+		}
+		if (ship->segments[i].is_hit) {
+			board->placeChar(position, 'x');
+		}
+		else {
+			board->placeChar(position, '+');
+		}
+	}
+}
 
 bool Player::placeShip(Board* board, Position_t position, char direction, int index, char ship_class[SHIP_TYPES], Vector<int>* set_segments) {
 	Position_t original_position = { position.y, position.x };
-
 	Ship* ship;
+
 	try {
 		ship = selectShip(index, ship_class);
-	}
-	catch (const char* error) {
-		std::cout << error;
-		std::cout << " \"PLACE_SHIP " << position.y << " " << position.x << " " << direction << " " << index << " " << ship_class << "\": ALL SHIPS OF THE CLASS ALREADY SET\n";
+	} catch (const char* _) {
+		errorHandler(position, direction, index, ship_class, 2);
 		return 1;
 	}
 
 	if (ship->is_placed) {
-		std::cout << "INVALID OPERATION \"PLACE_SHIP " << position.y << " " << position.x << " " << direction << " " << index << " " << ship_class << "\": SHIP ALREADY PRESENT\n";
+		errorHandler(position, direction, index, ship_class, 1);
 		return 1;
 	}
 
 	if (isValidPlacement(position, ship->size, direction)) {
-
 		int count = 1;
+
 		for (int i = 0; i < ship->size; i++) {
 			//Check if the ship doesn't collide
 			position = positionLoop(position, direction, 1);
@@ -117,36 +154,20 @@ bool Player::placeShip(Board* board, Position_t position, char direction, int in
 				count++;
 			}
 			else if (board->board[position.y][position.x] == '#') {
-				std::cout << "INVALID OPERATION \"PLACE_SHIP " << original_position.y << " " << original_position.x << " " << direction << " " << index << " " << ship_class << "\": PLACING SHIP ON REEF";
+				errorHandler(original_position, direction, index, ship_class, 3);
 				return 1;
 			}
 		}
-
 		if (count >= ship->size) {
-			for (int i = 0; i < ship->size; i++) {
-				//Draw the ship on the board
-				position = positionLoop(position, direction, -1);
-				ship->segments[i] = position;
-				if (set_segments != nullptr && set_segments->cur_length > 0) {
-					ship->segments[i].is_hit = !(set_segments->pop());
-				}
-				if (ship->segments[i].is_hit) {
-					board->placeChar(position, 'x');
-				}
-				else {
-					board->placeChar(position, '+');
-				}
-			}
-
-
+			drawShip(board, set_segments, ship, position, direction);
 		}
 		else {
-			std::cout << "ERROR PLACING SHIP\n";
+			//std::cout << "ERROR PLACING SHIP\n";
 			return 1;
 		}
 	}
 	else {
-		std::cout << "INVALID OPERATION \"PLACE_SHIP " << position.y << " " << position.x << " " << direction << " " << index << " " << ship_class << "\": NOT IN STARTING POSITION";
+		errorHandler(position, direction, index, ship_class, 4);
 		return 1;
 	}
 
