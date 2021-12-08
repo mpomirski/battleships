@@ -8,13 +8,14 @@ public:
 	Vector();
 	void push(T data);
 	void push(T data, int index);
-	T get( int index);
-	T get();
+	const T get( int index);
+	const T get();
 	T pop();
-	int getLength();
-	int getSize();
-	void print();
+	const int getLength();
+	const int getSize();
+	const void print();
 	T operator [](int i);
+	T operator=(T data);
 };
 
 template <typename T>
@@ -53,32 +54,32 @@ void Vector<T>::push(T data, int index) {
 template <typename T>
 T Vector<T>::pop() {
 	cur_length--;
-	return arr[cur_length + 1];
+	return arr[cur_length];
 }
 
 template <typename T>
-T Vector<T>::get() {
+const T Vector<T>::get() {
 	return arr[cur_length - 1];
 }
 
 template <typename T>
-T Vector<T>::get(int index) {
+const T Vector<T>::get(int index) {
 	if (index < cur_length) {
 		return arr[index];
 	}
 }
 
 template <typename T>
-int Vector<T>::getLength() {
+const int Vector<T>::getLength() {
 	return cur_length;
 }
 
 template <typename T>
-int Vector<T>::getSize() {
+const int Vector<T>::getSize() {
 	return max_length;
 }
 template <typename T>
-void Vector<T>::print() {
+const void Vector<T>::print() {
 	for (int i = 0; i < cur_length; i++) {
 		std::cout << arr[i] << " ";
 	}
@@ -88,6 +89,11 @@ void Vector<T>::print() {
 template <typename T>
 T Vector<T>::operator [](int i) {
 	return arr[i];
+}
+
+template <typename T>
+T Vector<T>::operator=(T data) {
+	this->push(data);
 }
 
 

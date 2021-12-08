@@ -7,6 +7,10 @@ Player::Player() {
 	current_ships = 0;
 	max_ships = 0;
 	ship_segments = 0;
+	round = 0;
+	min_y = 0, max_y = 0;
+	min_x = 0, max_x = SIZE_X;
+	bounded = false;
 }
 const char names[SHIP_TYPES][4] = { "CAR", "BAT", "CRU", "DES" };
 
@@ -42,7 +46,7 @@ void Player::initShips(int default_ship_numbers[SHIP_TYPES]) {
 		strcpy_s(choose_ships[i].ship_class, names[i]);
 	}
 
-	for (int i = 0; i < sizeof(default_ship_numbers); i++) {
+	for (int i = 0; i < SHIP_TYPES; i++) {
 		for (int j = 0; j < default_ship_numbers[i]; j++) {
 			ships[i][j] = choose_ships[i];
 		}
@@ -56,7 +60,7 @@ Ship* Player::selectShip(int index, char ship_class[SHIP_TYPES]) {
 	//const char Player::names[4][4] = { "CAR", "BAT", "CRU", "DES" };
 	for (int i = 0; i < sizeof(names) / sizeof(names[0]); i++) {
 		if (!strcmp(ship_class, names[i])) {
-			if (&ships[i][index].size != 0) {
+			if (ships[i][index].size != 0) {
 				return &ships[i][index];
 			}
 			else {
@@ -84,7 +88,10 @@ Vector<Position_t*> Player::getAllShipPositions() {
 	return shipPositions;
 }
 
-bool Player::placeShip(Board* board, Position_t position, char direction, int index, char ship_class[SHIP_TYPES]) {
+
+bool Player::placeShip(Board* board, Position_t position, char direction, int index, char ship_class[SHIP_TYPES], Vector<int>* set_segments) {
+	Position_t original_position = { position.y, position.x };
+
 	Ship* ship;
 	try {
 		ship = selectShip(index, ship_class);
@@ -109,6 +116,10 @@ bool Player::placeShip(Board* board, Position_t position, char direction, int in
 			if (board->board[position.y][position.x] == ' ') {
 				count++;
 			}
+			else if (board->board[position.y][position.x] == '#') {
+				std::cout << "INVALID OPERATION \"PLACE_SHIP " << original_position.y << " " << original_position.x << " " << direction << " " << index << " " << ship_class << "\": PLACING SHIP ON REEF";
+				return 1;
+			}
 		}
 
 		if (count >= ship->size) {
@@ -116,7 +127,10 @@ bool Player::placeShip(Board* board, Position_t position, char direction, int in
 				//Draw the ship on the board
 				position = positionLoop(position, direction, -1);
 				ship->segments[i] = position;
-				if (position.is_hit) {
+				if (set_segments != nullptr && set_segments->cur_length > 0) {
+					ship->segments[i].is_hit = !(set_segments->pop());
+				}
+				if (ship->segments[i].is_hit) {
 					board->placeChar(position, 'x');
 				}
 				else {
@@ -141,30 +155,31 @@ bool Player::placeShip(Board* board, Position_t position, char direction, int in
 	return 0;
 }
 
-bool Player::isValidPlacement(Position_t position, int ship_length, char direction) {
-	int min_y = 0, max_y = 0;
-	if (name == 'A') {
-		min_y = 0;
-		max_y = 9;
-	}
-	else if (name == 'B') {
-		min_y = 11;
-		max_y = 20;
+const bool Player::isValidPlacement(Position_t position, int ship_length, char direction) {
+	if (!bounded) {
+		if (name == 'A') {
+			min_y = 0;
+			max_y = 9;
+		}
+		else if (name == 'B') {
+			min_y = 11;
+			max_y = 20;
+		}
 	}
 
-	if ((position.x < SIZE_X && position.x >= 0) && (position.y >= min_y && position.y <= max_y)) {
+	if ((position.x <= max_x && position.x >= min_x) && (position.y >= min_y && position.y <= max_y)) {
 		switch (direction) {
 		case 'N':
 			return position.y + ship_length - 1 <= max_y;
 			break;
 		case 'E':
-			return position.x + 1 >= ship_length;
+			return position.x - ship_length + 1 >= min_x;
 			break;
 		case 'S':
 			return position.y - ship_length + 1 >= min_y;
 			break;
 		case 'W':
-			return position.x + ship_length <= SIZE_X;
+			return position.x + ship_length - 1 <= max_x;
 			break;
 		}
 	}

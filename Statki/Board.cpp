@@ -15,7 +15,7 @@ void Board::initBoard() {
 	}
 }
 
-void Board::printBoard() {
+const void Board::printBoard(int border_y) {
 	int player_A_ships_remaining = 0;
 	int player_B_ships_remaining = 0;
 
@@ -23,7 +23,7 @@ void Board::printBoard() {
 		for (int j = 0; j < SIZE_X; j++) {
 			std::cout << board[i][j];
 			if (board[i][j] == '+') {
-				if (i < (SIZE_Y / 2)) {
+				if (i < border_y/*(SIZE_Y / 2)*/) {
 					player_A_ships_remaining++;
 				}
 				else {
